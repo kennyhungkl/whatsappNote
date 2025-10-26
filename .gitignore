@@ -1,0 +1,18 @@
+# Node / general
+node_modules/
+*.log
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+
+# n8n-whatsapp-trigger auth/cache (do not commit sessions or cache)
+n8n-whatsapp-trigger/.env
+n8n-whatsapp-trigger/.wwebjs_auth/
+n8n-whatsapp-trigger/.wwebjs_cache/
+
+# n8n exports/backups
+*.json
