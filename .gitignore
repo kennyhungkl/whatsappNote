@@ -14,5 +14,5 @@ n8n-whatsapp-trigger/.env
 n8n-whatsapp-trigger/.wwebjs_auth/
 n8n-whatsapp-trigger/.wwebjs_cache/
 
-# n8n exports/backups
-*.json
+# n8n workflow export
+# Keep workflow JSON under version control

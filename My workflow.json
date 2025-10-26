@@ -1,0 +1,438 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "75ed01f3-15b0-475f-9c73-bebb2349be7b",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "685f87d9-a96c-4c6b-b06a-9508ce568a85",
+      "name": "Webhook",
+      "webhookId": "75ed01f3-15b0-475f-9c73-bebb2349be7b"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        752,
+        -96
+      ],
+      "id": "bbd264a1-b8ba-45bf-bbb5-827d00750796",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cfcfecbb-402f-4b24-8534-e33cbf158d69",
+              "leftValue": "={{ $json.output.category }}",
+              "rightValue": "expense record",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "30509686-cb5f-4efb-887e-b4640b405c8f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Input message:{{ $json.body.message }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a strict classifier for personal notes. Given an input message that the user sent to themselves, classify it into exactly one of the following categories:\n- checklist\n- expense record\n- credentials\n- brainstorming notes\n- not a note\n- others\n\nCategory definitions:\n- checklist: A list of tasks, to-dos, steps, or action items.\n- expense record: Contains a spending entry (amount, currency, merchant/vendor, date/time).\n- credentials: Contains account or secret information (e.g., username, password, PIN, recovery codes, API key, token).\n- brainstorming notes: Free-form ideas, plans, thoughts, or outlines intended for later refinement.\n- not a note: A regular message or conversation that is not intended to be stored as a note.\n- others: Note-like content that does not fit any category above.\n\nOutput format:\na single string (no extra text, no markdown) with these top-level fields\n\"checklist | expense record | credentials | brainstorming notes | not a note | others\"\n\nConstraints:\n- Be conservative with confidence.\n- Preserve the original language for any extracted text.\n- Do not include explanations outside the JSON."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "d57a7055-ff9b-4420-9056-687aa3ec67da",
+      "name": "Type Classifier"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        192,
+        272
+      ],
+      "id": "864b59d3-3507-4097-88ee-d59dbbbc997c",
+      "name": "Azure OpenAI Chat Model",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "FFGPXOPcvVtMKmNR",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "NOTE_AGENT_PROMPTS = {\n  \"expense record\": \"\"\"You are an expense-tracker assistant. Transform the user’s input into a JSON object with exactly these 3 fields.\n\nInput fields:\n- Expense: Item name (string)\n- Category: Free-text category name (string)\n- Amount: Number (parse currency symbols; return a number)\n\nCategory Resolution:\n- Call the categories_list tool once to fetch all categories.\n- Pick the closest match to the category of the expense\n- Always return the actual Notion page ID (CategoryId) of the chosen category. Do not invent IDs.\n- If no reasonable match exists, choose the closest available category; if a tie, prefer the category with the longest common prefix.\n\nAmount Parsing:\n- Parse amount to a number; strip currency symbols and thousands separators (e.g., \"$1,299.00\" -> 1299).\n\nOutput:\n- Return ONLY a single JSON object with exactly these 3 fields. No extra keys, text, or metadata.\n\nOutput format (strict):\n{\n  \"Expense\": \"<Item name>\",\n  \"CategoryId\": \"<category_page_id>\",\n  \"Amount\": <amount_number>\n}\n\nExamples:\n\nInput:\nExpense: Netflix subscription\nCategory: Entertainment\nAmount: 79.9\nOutput:\n{\n  \"Expense\": \"Netflix subscription\",\n  \"CategoryId\": \"<ID_OF_Entertainment>\",\n  \"Amount\": 79.9\n}\n\nInput:\nExpense: Eggs and milk\nCategory: Groceries\nAmount: $56.20\nOutput:\n{\n  \"Expense\": \"Eggs and milk\",\n  \"CategoryId\": \"<ID_OF_Groceries>\",\n  \"Amount\": 56.2\n}\n\nInput:\nExpense: Uber to office\nCategory: Transport\nAmount: HK$120\nOutput:\n{\n  \"Expense\": \"Uber to office\",\n  \"CategoryId\": \"<ID_OF_Transport>\",\n  \"Amount\": 120\n}\n\"\"\"\n}\n\noutput_items = [\n    {\n        \"json\": {\n            \"prompt\": NOTE_AGENT_PROMPTS[_input.first().json.output.category]\n        }\n    }\n]\n\n# The Code node expects a list of items to be returned\nreturn output_items"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        80
+      ],
+      "id": "76da0245-7c99-4c13-9c24-ea3d86faec89",
+      "name": "choose prompt"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"category\": \"content\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        336,
+        272
+      ],
+      "id": "0b1303c3-a813-448b-825e-5d63966d2e59",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        944,
+        464
+      ],
+      "id": "0ec17aa3-d55c-461f-bb4a-ef49aaefa166",
+      "name": "Azure OpenAI Chat Model1",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "FFGPXOPcvVtMKmNR",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "291a8216-7a81-81ac-aec5-ffa0caa1f7b7",
+          "mode": "list",
+          "cachedResultName": "Expenses",
+          "cachedResultUrl": "https://www.notion.so/291a82167a8181acaec5ffa0caa1f7b7"
+        },
+        "title": "=",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Amount|number",
+              "numberValue": "={{ $json.output.Amount }}"
+            },
+            {
+              "key": "Expense|title",
+              "title": "={{ $json.output.Expense }}"
+            },
+            {
+              "key": "Category|relation",
+              "relationValue": [
+                "={{ $json.output.CategoryId }}"
+              ]
+            },
+            {
+              "key": "Date|date",
+              "date": "={{$now}}",
+              "timezone": "Asia/Hong_Kong"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1264,
+        80
+      ],
+      "id": "aecab5df-772e-4b37-8d53-8ccfae4f5f44",
+      "name": "Create a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "mlGQlQ1Ojma54eik",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"Expense\": { \"type\": \"string\" },\n    \"CategoryId\": { \"type\": \"string\" },\n    \"Amount\": { \"type\": \"number\" }\n  },\n  \"required\": [\"Expense\", \"Category\", \"Amount\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1088,
+        464
+      ],
+      "id": "9308b3c8-a2cd-40ce-83cc-b4575cc72401",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "291a8216-7a81-81cf-95e8-da0d3d99d0d6",
+          "mode": "list",
+          "cachedResultName": "Category",
+          "cachedResultUrl": "https://www.notion.so/291a82167a8181cf95e8da0d3d99d0d6"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notionTool",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        288
+      ],
+      "id": "4069b960-e48e-4006-b6a7-78cd9c4596a5",
+      "name": "categories_list",
+      "credentials": {
+        "notionApi": {
+          "id": "mlGQlQ1Ojma54eik",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Input:{{ $('Webhook').item.json.body.message }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        944,
+        80
+      ],
+      "id": "0212e824-dd53-4413-b63f-cfe67446cb8b",
+      "name": "Note Taking Agent"
+    },
+    {
+      "parameters": {
+        "content": "## Decide The input message category. \ncategories:\n- checklist\n- expense record\n- credentials\n- brainstorming notes\n- not a note\n- others\n",
+        "height": 656,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        144,
+        -256
+      ],
+      "typeVersion": 1,
+      "id": "f06b6fec-178e-4a69-b5a5-55c1426c4e2c",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Decide the execution prompt\nRoute to correct path and pass the corresponding set of prompt to the LLM\n\n",
+        "height": 480,
+        "width": 368
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        512,
+        -256
+      ],
+      "typeVersion": 1,
+      "id": "0aebbf15-2eee-4aed-8720-a2de3fbbac65",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Note Taking\nThe LLM use the tool to get the ID of page in Notion and create page at the expense record.\n",
+        "height": 640,
+        "width": 528
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        912,
+        -32
+      ],
+      "typeVersion": 1,
+      "id": "488c1d98-2285-42b9-b488-c5eee7a6ecbd",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Type Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "choose prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Type Classifier": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Type Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "choose prompt": {
+      "main": [
+        [
+          {
+            "node": "Note Taking Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Type Classifier",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Note Taking Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Note Taking Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "categories_list": {
+      "ai_tool": [
+        [
+          {
+            "node": "Note Taking Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Note Taking Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "46c865c0-4d8b-49ac-aa5b-aaca5ca63680",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9aa4a039130f3b776ebc9fd3dca23a8c71fe39b7cc3ccac8f4facb0efadf9613"
+  },
+  "id": "aD1tGtghxOKYpEij",
+  "tags": []
+}

@@ -32,3 +32,10 @@ Send a WhatsApp message to yourself to log expenses straight into a Notion datab
   - `Expense: Uber; Category: Transport; Amount: 98.5`
   - `Lunch - Food - 65`
 - Voice (ptt) or image messages can be used if your n8n workflow transcribes/reads them.
+
+## Import n8n Workflow
+- Open n8n and go to `Workflows` → `Import from File`.
+- Select `workflow.json` 
+- Open the Webhook node in the imported workflow and copy the production webhook URL.
+- Set `N8N_WEBHOOK_URL` in `n8n-whatsapp-trigger/.env` to that production URL (not `/webhook-test`).
+- Set the workflow to `Active` and test by sending a message to yourself.
